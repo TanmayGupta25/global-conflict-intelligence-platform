@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+.env.example (use for template, don't ignore)
+
+# Data and logs
+logs/*.log
+reports/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Local datasets/artifacts (optional: if you want users to download their own)
+# data/*.xlsx
+# models/*.pkl
+
+# Colab/Jupyter clutter
+.ipynb_checkpoints/

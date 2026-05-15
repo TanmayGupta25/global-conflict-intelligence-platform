@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <title>Conflict AI - {% block title %}{% endblock %}</title>
+    <link rel='stylesheet' href='/static/style.css'>
+    <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+</head>
+<body>
+    <nav>
+        <a href='/'>Terminal</a>
+        <a href='/map'>Global Map</a>
+        <a href='/historical'>Analysis</a>
+        <a href='/forecast'>Forecasting</a>
+        <a href='/health'>System</a>
+    </nav>
+    <main>{% block content %}{% endblock %}</main>
+    <footer>GEOPOLITICAL INTELLIGENCE UNIT &copy; 2024</footer>
+</body>
+</html>

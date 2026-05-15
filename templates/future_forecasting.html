@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Strategic Risk Forecasting</h1>
+<div class='grid'>
+    <div class='card'>
+        <h3>Scenario Parameters</h3>
+        <form method='POST'>
+            <select name='country' style='width:100%; margin-bottom:1rem;'>
+                {% for c in countries %}<option value='{{c}}'>{{c}}</option>{% endfor %}
+            </select>
+            <label>GDP Growth</label><input type='range' name='gdp' min='0' max='500' value='100' style='width:100%'>
+            <label>Stability Index</label><input type='range' name='stability' min='-3' max='3' step='0.1' value='0' style='width:100%'>
+            <label>Military Exp</label><input type='number' name='milexp' value='1000' style='width:100%; margin-bottom:1rem;'>
+            <button type='submit' style='background:var(--accent-red); width:100%;'>Simulate Scenario</button>
+        </form>
+    </div>
+    {% if results %}
+    <div class='card'><div id='gauge'></div></div>
+    <div class='card'><h3>Primary Instability Drivers</h3><div id='shap_chart'></div></div>
+    <div class='card' style='grid-column: 1 / -1;'>
+        <h3>Intelligence Brief</h3>
+        <pre style='white-space: pre-wrap; font-family:inherit; color:var(--text-secondary);'>{{ results.report }}</pre>
+    </div>
+    <script>
+        var g = {{ results.gauge | safe }}; Plotly.newPlot('gauge', g.data, g.layout);
+        var s = {{ results.shap_chart | safe }}; Plotly.newPlot('shap_chart', s.data, s.layout);
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

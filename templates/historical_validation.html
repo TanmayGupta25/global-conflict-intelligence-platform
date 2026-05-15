@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Historical Validation Workspace</h1>
+<div class='grid'>
+    <div class='card'>
+        <h3>Target Parameters</h3>
+        <form method='POST'>
+            <select name='country' style='width:100%; margin-bottom:1rem;'>
+                {% for c in countries %}<option value='{{c}}'>{{c}}</option>{% endfor %}
+            </select>
+            <input type='number' name='year' value='2022' style='width:100%; margin-bottom:1rem;'>
+            <button type='submit' style='background:var(--accent-blue); width:100%;'>Run Verification</button>
+        </form>
+    </div>
+    {% if results %}
+    <div class='card'>
+        <div id='gauge'></div>
+        <script>var g = {{ results.gauge | safe }}; Plotly.newPlot('gauge', g.data, g.layout);</script>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

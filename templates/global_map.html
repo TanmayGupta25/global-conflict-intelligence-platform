@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Intelligence Map{% endblock %}
+{% block content %}
+<h1>Global Geopolitical Risk Overview</h1>
+<div class='card' style='height: 700px;'>
+    <div id='world_map' style='height: 100%;'></div>
+</div>
+<script>
+    var mapData = {{ map_json | safe }};
+    Plotly.newPlot('world_map', mapData.data, mapData.layout, {responsive: true});
+</script>
+{% endblock %}
