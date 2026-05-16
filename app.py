@@ -78,7 +78,7 @@ try:
             config.FEATURES_PATH
         )
 
-        explainer = None
+        explainer = shap_engine.create_shap_explainer(model)
 
         df_base = pd.read_excel(config.DATASET_PATH)
 
@@ -263,6 +263,9 @@ def forecast():
                 feature_order
             )
             
+            X_input = X_input.apply(pd.to_numeric, errors='coerce')
+            X_input = X_input.fillna(0)
+            
             print("===== X_INPUT DTYPES =====")
             print(X_input.dtypes)
 
@@ -284,7 +287,16 @@ def forecast():
 
             print("STEP 2 PASSED")
 
-            top_f = pd.DataFrame(columns=['feature', 'shap_value'])
+            shap_values = shap_engine.generate_shap_values(
+                explainer,
+                X_input
+            )
+
+            top_f = shap_engine.get_top_feature_impacts(
+                shap_values,
+                X_input.columns,
+                top_n=10
+            )
 
             report = report_generator.generate_full_report(
                 country,
@@ -309,7 +321,7 @@ def forecast():
 
                 "gauge": gauge_chart,
 
-                "shap_chart": None
+                "shap_chart": shap_engine.generate_explanation_summary(top_f)
             }
 
             print("STEP 5 PASSED")
