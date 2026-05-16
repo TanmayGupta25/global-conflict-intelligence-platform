@@ -271,16 +271,7 @@ def forecast():
                 config.HIGH_RISK_THRESHOLD
             )
 
-            sv = shap_engine.generate_shap_values(
-                explainer,
-                X_input
-            )
-
-            top_f = shap_engine.get_top_feature_impacts(
-                sv,
-                feature_order,
-                top_n=config.TOP_N_FEATURES
-            )
+            top_f = []
 
             report = report_generator.generate_full_report(
                 country,
@@ -299,9 +290,7 @@ def forecast():
                     risk
                 ),
 
-                "shap_chart": visualization_engine.create_shap_chart(
-                    top_f
-                )
+                "shap_chart": None
             }
 
         except Exception as e:
