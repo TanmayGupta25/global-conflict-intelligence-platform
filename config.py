@@ -2,7 +2,7 @@ import os
 import secrets
 
 # --- PROJECT PATHS ---
-BASE_DIR = "/content/drive/MyDrive/Conflict_Prediction_Project"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 DATA_DIR = os.path.join(BASE_DIR, "data")
