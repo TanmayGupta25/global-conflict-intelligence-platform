@@ -78,7 +78,7 @@ try:
             config.FEATURES_PATH
         )
 
-        explainer = shap_engine.create_shap_explainer(model)
+        explainer = None
 
         df_base = pd.read_excel(config.DATASET_PATH)
 
