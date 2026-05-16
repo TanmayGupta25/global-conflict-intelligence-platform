@@ -254,6 +254,9 @@ def forecast():
                 ['GDP', 'Stability', 'MilExp'],
                 ['GDP', 'Stability', 'MilExp']
             )
+            print(sim_df.tail(1))
+
+            print(sim_df.dtypes)
 
             X_input = prediction_engine.prepare_prediction_input(
                 sim_df.tail(1),
