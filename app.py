@@ -265,11 +265,15 @@ def forecast():
                 X_input
             )
 
+            print("STEP 1 PASSED")
+
             risk = prediction_engine.classify_risk(
                 prob[0],
                 config.LOW_RISK_THRESHOLD,
                 config.HIGH_RISK_THRESHOLD
             )
+
+            print("STEP 2 PASSED")
 
             top_f = []
 
@@ -281,17 +285,25 @@ def forecast():
                 top_f
             )
 
+            print("STEP 3 PASSED")
+
+            gauge_chart = visualization_engine.create_risk_gauge(
+                prob[0],
+                risk
+            )
+
+            print("STEP 4 PASSED")
+
             results = {
 
                 "report": str(report),
 
-                "gauge": visualization_engine.create_risk_gauge(
-                    prob[0],
-                    risk
-                ),
+                "gauge": gauge_chart,
 
                 "shap_chart": None
             }
+
+            print("STEP 5 PASSED")
 
         except Exception as e:
 
