@@ -299,7 +299,7 @@ def forecast():
 
             results = {
 
-                "report": str(report),
+                "report": report["full_text"],
 
                 "gauge": gauge_chart,
 
