@@ -278,7 +278,7 @@ def forecast():
 
             print("STEP 2 PASSED")
 
-            top_f = []
+            top_f = pd.DataFrame(columns=['feature', 'shap_value'])
 
             report = report_generator.generate_full_report(
                 country,
