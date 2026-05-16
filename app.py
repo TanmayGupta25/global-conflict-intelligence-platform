@@ -283,7 +283,7 @@ def forecast():
 
             results = {
 
-                "report": report['full_text'],
+                "report": str(report),
 
                 "gauge": visualization_engine.create_risk_gauge(
                     prob[0],
