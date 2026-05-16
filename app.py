@@ -262,6 +262,12 @@ def forecast():
                 sim_df.tail(1),
                 feature_order
             )
+            
+            print("===== X_INPUT DTYPES =====")
+            print(X_input.dtypes)
+
+            print("===== X_INPUT VALUES =====")
+            print(X_input.iloc[0])
 
             prob, _ = prediction_engine.predict_conflict(
                 model,
