@@ -343,7 +343,7 @@ def forecast():
 
                 "gauge": gauge_chart,
 
-                "shap_chart": shap_engine.generate_explanation_summary(top_f)
+                "shap_chart": visualization_engine.create_shap_chart(top_f)
             }
 
             print("STEP 5 PASSED")
