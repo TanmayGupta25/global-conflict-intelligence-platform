@@ -78,7 +78,11 @@ try:
             config.FEATURES_PATH
         )
 
-        explainer = shap_engine.create_shap_explainer(model)
+        try:
+            explainer = shap_engine.create_shap_explainer(model)
+        except Exception as e:
+            print(f"SHAP startup disabled: {e}")
+            explainer = None
 
         df_base = pd.read_excel(config.DATASET_PATH)
 
