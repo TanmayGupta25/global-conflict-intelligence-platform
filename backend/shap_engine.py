@@ -3,12 +3,24 @@ import pandas as pd
 import numpy as np
 
 def create_shap_explainer(model):
-    """Initializes SHAP explainer for tree-based models."""
+    """Initializes SHAP explainer safely."""
+
     try:
-        # TreeExplainer is suitable for XGBoost and Random Forest
-        return shap.TreeExplainer(model)
+        print("Initializing SHAP TreeExplainer...")
+
+        explainer = shap.TreeExplainer(
+            model,
+            feature_perturbation="tree_path_dependent"
+        )
+
+        print("SHAP explainer initialized successfully.")
+
+        return explainer
+
     except Exception as e:
+
         print(f"Error initializing SHAP explainer: {e}")
+
         return None
 
 def generate_shap_values(explainer, X):
