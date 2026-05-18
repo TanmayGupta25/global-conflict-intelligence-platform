@@ -304,7 +304,7 @@ def forecast():
 
             if shap_values is not None:
 
-                 try:
+                try:
 
                     top_f = shap_engine.get_top_feature_impacts(
                         shap_values,
