@@ -8,7 +8,14 @@ def create_shap_explainer(model):
 
     try:
 
+        # ============================================================
+        # DEPLOYMENT DEBUG MARKER
+        # ============================================================
+
+        print("================================================")
+        print("=== NEW CLEAN MODEL LOADED ===")
         print("Initializing SHAP TreeExplainer...")
+        print("================================================")
 
         explainer = shap.TreeExplainer(
             model,
@@ -21,7 +28,10 @@ def create_shap_explainer(model):
 
     except Exception as e:
 
+        print("================================================")
+        print("SHAP INITIALIZATION FAILED")
         print(f"Error initializing SHAP explainer: {e}")
+        print("================================================")
 
         return None
 
@@ -31,19 +41,49 @@ def generate_shap_values(explainer, X):
 
     try:
 
+        # ============================================================
         # SAFETY CHECK
+        # ============================================================
+
         if explainer is None:
+
+            print("SHAP explainer is None.")
             return None
 
-        # check_additivity=False for XGBoost compatibility
-        return explainer.shap_values(
+        # ============================================================
+        # FORCE NUMERIC SAFETY
+        # ============================================================
+
+        X = X.copy()
+
+        X = X.apply(pd.to_numeric, errors='coerce')
+
+        X = X.fillna(0)
+
+        X = X.astype(np.float64)
+
+        print("SHAP INPUT TYPES VERIFIED:")
+        print(X.dtypes)
+
+        # ============================================================
+        # GENERATE SHAP VALUES
+        # ============================================================
+
+        shap_values = explainer.shap_values(
             X,
             check_additivity=False
         )
 
+        print("SHAP values generated successfully.")
+
+        return shap_values
+
     except Exception as e:
 
+        print("================================================")
+        print("SHAP VALUE GENERATION FAILED")
         print(f"Error generating SHAP values: {e}")
+        print("================================================")
 
         return None
 
@@ -57,11 +97,19 @@ def get_top_feature_impacts(
 
     try:
 
+        # ============================================================
         # SAFETY CHECK
+        # ============================================================
+
         if shap_values is None:
+
+            print("No SHAP values available.")
             return []
 
-        # Handle case where shap_values is a list
+        # ============================================================
+        # HANDLE MULTICLASS / BINARY OUTPUT
+        # ============================================================
+
         if isinstance(shap_values, list):
 
             impacts = (
@@ -74,11 +122,18 @@ def get_top_feature_impacts(
 
             impacts = shap_values
 
-        # If multiple rows, take first row
+        # ============================================================
+        # HANDLE MULTI-ROW INPUT
+        # ============================================================
+
         if len(impacts.shape) > 1:
+
             impacts = impacts[0]
 
-        # Create dataframe
+        # ============================================================
+        # CREATE IMPACT DATAFRAME
+        # ============================================================
+
         impact_df = pd.DataFrame({
 
             'feature': feature_names,
@@ -88,14 +143,21 @@ def get_top_feature_impacts(
             'abs_impact': np.abs(impacts)
         })
 
-        return impact_df.sort_values(
+        impact_df = impact_df.sort_values(
             by='abs_impact',
             ascending=False
         ).head(top_n)
 
+        print("Top SHAP features extracted successfully.")
+
+        return impact_df
+
     except Exception as e:
 
+        print("================================================")
+        print("TOP FEATURE EXTRACTION FAILED")
         print(f"Error extracting top SHAP features: {e}")
+        print("================================================")
 
         return []
 
@@ -103,11 +165,16 @@ def get_top_feature_impacts(
 def generate_explanation_summary(top_features):
     """Generates geopolitical intelligence style summary."""
 
+    # ============================================================
     # SAFETY CHECKS
+    # ============================================================
+
     if top_features is None:
+
         return "No SHAP feature explanations available."
 
     if isinstance(top_features, list):
+
         return "No SHAP feature explanations available."
 
     summary_lines = []
@@ -138,10 +205,15 @@ def generate_explanation_summary(top_features):
 
             summary_lines.append(line)
 
+        print("SHAP explanation summary generated successfully.")
+
         return "\n".join(summary_lines)
 
     except Exception as e:
 
+        print("================================================")
+        print("SUMMARY GENERATION FAILED")
         print(f"Error generating explanation summary: {e}")
+        print("================================================")
 
         return "SHAP explanation generation unavailable."
