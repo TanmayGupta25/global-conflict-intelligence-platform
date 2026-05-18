@@ -302,7 +302,7 @@ def forecast():
 
                 shap_values = None
 
-            top_f = []
+            top_f = None
 
             if shap_values is not None:
 
@@ -318,7 +318,7 @@ def forecast():
 
                     print(f"Top feature extraction failed: {e}")
 
-                    top_f = []
+                    top_f = None
 
             report = report_generator.generate_full_report(
                 country,
