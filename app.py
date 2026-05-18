@@ -304,15 +304,23 @@ def forecast():
 
             if shap_values is not None:
 
-                top_f = shap_engine.get_top_feature_impacts(
-                    shap_values,
-                    X_input.columns,
-                    top_n=10
-                )
+                 try:
+
+                    top_f = shap_engine.get_top_feature_impacts(
+                        shap_values,
+                        X_input.columns,
+                        top_n=10
+                    )
+
+                except Exception as e:
+
+                    print(f"Top feature extraction failed: {e}")
+
+                    top_f = []
 
             else:
 
-                    top_f = []
+                top_f = []
 
             report = report_generator.generate_full_report(
                 country,
