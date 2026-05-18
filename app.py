@@ -291,16 +291,28 @@ def forecast():
 
             print("STEP 2 PASSED")
 
-            shap_values = shap_engine.generate_shap_values(
-                explainer,
-                X_input
-            )
+            if explainer is not None:
 
-            top_f = shap_engine.get_top_feature_impacts(
-                shap_values,
-                X_input.columns,
-                top_n=10
-            )
+                shap_values = shap_engine.generate_shap_values(
+                    explainer,
+                    X_input
+                )
+
+            else:
+
+                shap_values = None
+
+            if shap_values is not None:
+
+                top_f = shap_engine.get_top_feature_impacts(
+                    shap_values,
+                    X_input.columns,
+                    top_n=10
+                )
+
+            else:
+
+                    top_f = []
 
             report = report_generator.generate_full_report(
                 country,
