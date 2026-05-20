@@ -10,19 +10,52 @@ def generate_risk_summary(country, year, probability, risk_level):
 
 
 def filter_features(top_features, keywords):
-    """Helper to filter SHAP impacts by category keywords."""
 
-    # SAFETY FIX
-    if isinstance(top_features, list):
-        return None
+    # --------------------------------------------------------
+    # Defensive validation
+    # --------------------------------------------------------
 
-    return top_features[
-        top_features['feature'].str.contains(
-            '|'.join(keywords),
+    if top_features is None:
+
+        print("WARNING: top_features is None")
+
+        return pd.DataFrame(columns=['feature'])
+
+    # --------------------------------------------------------
+    # Empty dataframe protection
+    # --------------------------------------------------------
+
+    if len(top_features) == 0:
+
+        print("WARNING: top_features is empty")
+
+        return pd.DataFrame(columns=['feature'])
+
+    # --------------------------------------------------------
+    # Missing column protection
+    # --------------------------------------------------------
+
+    if 'feature' not in top_features.columns:
+
+        print("WARNING: 'feature' column missing")
+
+        return pd.DataFrame(columns=['feature'])
+
+    # --------------------------------------------------------
+    # Safe filtering
+    # --------------------------------------------------------
+
+    pattern = '|'.join(keywords)
+
+    filtered = top_features[
+        top_features['feature'].astype(str).str.contains(
+            pattern,
             case=False,
             na=False
         )
     ]
+
+    return filtered
 
 
 def generate_governance_analysis(top_features):
