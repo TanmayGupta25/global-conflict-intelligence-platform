@@ -79,9 +79,15 @@ try:
         )
 
         try:
+
             explainer = shap_engine.create_shap_explainer(model)
+
+            print("SHAP INITIALIZATION SUCCESSFUL")
+
         except Exception as e:
+
             print(f"SHAP startup disabled: {e}")
+
             explainer = None
 
         df_base = pd.read_excel(config.DATASET_PATH)
@@ -258,6 +264,7 @@ def forecast():
                 ['GDP', 'Stability', 'MilExp'],
                 ['GDP', 'Stability', 'MilExp']
             )
+
             print(sim_df.tail(1))
 
             print(sim_df.dtypes)
@@ -266,15 +273,38 @@ def forecast():
                 sim_df.tail(1),
                 feature_order
             )
-            
+
             X_input = X_input.apply(pd.to_numeric, errors='coerce')
+
             X_input = X_input.fillna(0)
-            
+
+            # ----------------------------------------------------
+            # Convert bool columns safely to float64
+            # ----------------------------------------------------
+
+            bool_cols = X_input.select_dtypes(include=['bool']).columns
+
+            if len(bool_cols) > 0:
+
+                X_input[bool_cols] = (
+                    X_input[bool_cols]
+                    .astype(int)
+                    .astype(float)
+                )
+
+            X_input = X_input.astype(float)
+
             print("===== X_INPUT DTYPES =====")
+
             print(X_input.dtypes)
 
             print("===== X_INPUT VALUES =====")
+
             print(X_input.iloc[0])
+
+            # ----------------------------------------------------
+            # Prediction
+            # ----------------------------------------------------
 
             prob, _ = prediction_engine.predict_conflict(
                 model,
@@ -291,16 +321,32 @@ def forecast():
 
             print("STEP 2 PASSED")
 
+            # ----------------------------------------------------
+            # SHAP Generation
+            # ----------------------------------------------------
+
             if explainer is not None:
 
-                shap_values = shap_engine.generate_shap_values(
-                    explainer,
-                    X_input
-                )
+                try:
+
+                    shap_values = shap_engine.generate_shap_values(
+                        explainer,
+                        X_input
+                    )
+
+                except Exception as e:
+
+                    print(f"SHAP generation failed: {e}")
+
+                    shap_values = None
 
             else:
 
                 shap_values = None
+
+            # ----------------------------------------------------
+            # Top Feature Extraction
+            # ----------------------------------------------------
 
             top_f = None
 
@@ -320,6 +366,10 @@ def forecast():
 
                     top_f = None
 
+            # ----------------------------------------------------
+            # Report Generation + Defensive Validation
+            # ----------------------------------------------------
+
             report = report_generator.generate_full_report(
                 country,
                 2024,
@@ -328,7 +378,28 @@ def forecast():
                 top_f
             )
 
+            print("===== REPORT DEBUG =====")
+
+            print("REPORT OBJECT:", report)
+
+            print("REPORT TYPE:", type(report))
+
+            if report is None:
+
+                print("WARNING: report_generator returned None")
+
+                report = {
+                    "full_text": (
+                        "Forecast generated successfully, "
+                        "but intelligence report generation failed."
+                    )
+                }
+
             print("STEP 3 PASSED")
+
+            # ----------------------------------------------------
+            # Gauge Chart
+            # ----------------------------------------------------
 
             gauge_chart = visualization_engine.create_risk_gauge(
                 prob[0],
@@ -337,20 +408,44 @@ def forecast():
 
             print("STEP 4 PASSED")
 
+            # ----------------------------------------------------
+            # SHAP Chart
+            # ----------------------------------------------------
+
+            try:
+
+                shap_chart = visualization_engine.create_shap_chart(top_f)
+
+            except Exception as e:
+
+                print(f"SHAP chart generation failed: {e}")
+
+                shap_chart = None
+
+            # ----------------------------------------------------
+            # Final Result Packaging
+            # ----------------------------------------------------
+
             results = {
 
-                "report": report["full_text"],
+                "report": report.get(
+                    "full_text",
+                    "Report unavailable."
+                ),
 
                 "gauge": gauge_chart,
 
-                "shap_chart": visualization_engine.create_shap_chart(top_f)
+                "shap_chart": shap_chart
             }
 
             print("STEP 5 PASSED")
 
         except Exception as e:
 
-            logger.error(f"Forecasting Simulation Error: {e}")
+            logger.error(
+                f"Forecasting Simulation Error: {e}",
+                exc_info=True
+            )
 
     return render_template(
         "future_forecasting.html",
