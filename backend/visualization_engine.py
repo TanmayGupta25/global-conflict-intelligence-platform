@@ -63,16 +63,131 @@ def create_risk_gauge(prob, risk_level):
     return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
 def create_shap_chart(top_f):
-    """Generates a horizontal bar chart for feature impacts."""
+    """
+    Generates a horizontal bar chart for feature impacts.
+    Supports:
+    - SHAP dataframe
+    - fallback list
+    - empty/None values
+    """
+
+    # =========================================================
+    # 1. EMPTY SAFETY
+    # =========================================================
+
+    if top_f is None:
+
+        fig = go.Figure()
+
+        fig.update_layout(
+            paper_bgcolor='#1e293b',
+            plot_bgcolor='#1e293b',
+            font={'color': "#f1f5f9"},
+            annotations=[
+                dict(
+                    text="No instability driver data available.",
+                    x=0.5,
+                    y=0.5,
+                    showarrow=False,
+                    font=dict(size=16, color="#f1f5f9")
+                )
+            ],
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            height=300
+        )
+
+        return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+    # =========================================================
+    # 2. FALLBACK LIST SUPPORT
+    # =========================================================
+
+    if isinstance(top_f, list):
+
+        if len(top_f) == 0:
+
+            fig = go.Figure()
+
+            fig.update_layout(
+                paper_bgcolor='#1e293b',
+                plot_bgcolor='#1e293b',
+                font={'color': "#f1f5f9"},
+                annotations=[
+                    dict(
+                        text="No instability driver data available.",
+                        x=0.5,
+                        y=0.5,
+                        showarrow=False,
+                        font=dict(size=16, color="#f1f5f9")
+                    )
+                ],
+                xaxis=dict(visible=False),
+                yaxis=dict(visible=False),
+                height=300
+            )
+
+            return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+        features = [x['feature'] for x in top_f]
+        values = [x['impact'] for x in top_f]
+
+    # =========================================================
+    # 3. DATAFRAME SUPPORT
+    # =========================================================
+
+    else:
+
+        if top_f.empty:
+
+            fig = go.Figure()
+
+            fig.update_layout(
+                paper_bgcolor='#1e293b',
+                plot_bgcolor='#1e293b',
+                font={'color': "#f1f5f9"},
+                annotations=[
+                    dict(
+                        text="No instability driver data available.",
+                        x=0.5,
+                        y=0.5,
+                        showarrow=False,
+                        font=dict(size=16, color="#f1f5f9")
+                    )
+                ],
+                xaxis=dict(visible=False),
+                yaxis=dict(visible=False),
+                height=300
+            )
+
+            return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+
+        features = top_f['feature'].tolist()
+        values = top_f['shap_value'].tolist()
+
+    # =========================================================
+    # 4. BUILD CHART
+    # =========================================================
+
     fig = go.Figure(go.Bar(
-        x=top_f['shap_value'],
-        y=top_f['feature'],
+        x=values,
+        y=features,
         orientation='h',
-        marker=dict(color=['#ef4444' if x > 0 else '#38bdf8' for x in top_f['shap_value']])
+        marker=dict(
+            color=[
+                '#ef4444' if x > 0 else '#38bdf8'
+                for x in values
+            ]
+        )
     ))
+
     fig.update_layout(
-        paper_bgcolor='#1e293b', plot_bgcolor='#1e293b',
-        font={'color': "#f1f5f9"}, height=300, margin=dict(l=10, r=10, t=30, b=10),
+        paper_bgcolor='#1e293b',
+        plot_bgcolor='#1e293b',
+        font={'color': "#f1f5f9"},
+        height=300,
+        margin=dict(l=10, r=10, t=30, b=10),
         yaxis=dict(autorange="reversed")
     )
+
     return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
