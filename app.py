@@ -257,6 +257,10 @@ def forecast():
                 df_base['Country'] == country
             ]
 
+            # ============================================================
+            # SIMULATION
+            # ============================================================
+
             sim_df = simulation_engine.simulate_future_risk(
                 country_history,
                 scenario,
@@ -266,51 +270,33 @@ def forecast():
             )
 
             print(sim_df.tail(1))
+
             print(sim_df.dtypes)
 
-            # ====================================================
-            # PREPARE MODEL INPUT
-            # ====================================================
+            # ============================================================
+            # MODEL INPUT PREPARATION
+            # ============================================================
 
             X_input = prediction_engine.prepare_prediction_input(
                 sim_df.tail(1),
                 feature_order
             )
 
-            X_input = X_input.apply(
-                pd.to_numeric,
-                errors='coerce'
-            )
+            X_input = X_input.apply(pd.to_numeric, errors='coerce')
 
             X_input = X_input.fillna(0)
 
-            # ====================================================
-            # SAFE BOOL → FLOAT CONVERSION
-            # ====================================================
-
-            bool_cols = X_input.select_dtypes(
-                include=['bool']
-            ).columns
-
-            if len(bool_cols) > 0:
-
-                X_input[bool_cols] = (
-                    X_input[bool_cols]
-                    .astype(int)
-                    .astype(float)
-                )
-
-            X_input = X_input.astype(float)
-
             print("===== X_INPUT DTYPES =====")
+
             print(X_input.dtypes)
 
             print("===== X_INPUT VALUES =====")
+
             print(X_input.iloc[0])
 
-            # ====================================================
-            # MODEL PREDICTION
-            # ====================================================
+            # ============================================================
+            # PREDICTION
+            # ============================================================
 
             prob, _ = prediction_engine.predict_conflict(
                 model,
@@ -327,17 +313,9 @@ def forecast():
 
             print("STEP 2 PASSED")
 
-            # ====================================================
-            # DEFAULT SAFE EMPTY DATAFRAME
-            # ====================================================
-
-            top_f = pd.DataFrame(
-                columns=['feature', 'shap_value']
-            )
-
-            # ====================================================
-            # SHAP PROCESSING
-            # ====================================================
+            # ============================================================
+            # SHAP GENERATION
+            # ============================================================
 
             if explainer is not None:
 
@@ -348,33 +326,53 @@ def forecast():
                         X_input
                     )
 
-                    extracted = shap_engine.get_top_feature_impacts(
-                        shap_values,
-                        X_input.columns,
-                        top_n=10
-                    )
-
-                    if extracted is not None:
-
-                        top_f = extracted
-
-                    print("SHAP FEATURE EXTRACTION SUCCESS")
-
                 except Exception as e:
 
-                    print(f"SHAP pipeline failed: {e}")
+                    print(f"SHAP generation failed: {e}")
 
-                    top_f = pd.DataFrame(
-                        columns=['feature', 'shap_value']
-                    )
+                    shap_values = None
 
             else:
 
-                print("SHAP explainer unavailable")
+                shap_values = None
 
-            # ====================================================
+            # ============================================================
+            # SAFE SHAP FEATURE EXTRACTION
+            # ============================================================
+
+            top_f = []
+
+            if shap_values is not None:
+
+                try:
+
+                    extracted_features = (
+                        shap_engine.get_top_feature_impacts(
+                            shap_values,
+                            X_input.columns,
+                            top_n=10
+                        )
+                    )
+
+                    if extracted_features is not None:
+
+                        top_f = extracted_features
+
+                except Exception as e:
+
+                    print(f"Top feature extraction failed: {e}")
+
+                    top_f = []
+
+            if top_f is None:
+
+                top_f = []
+
+            print("STEP 3 PASSED")
+
+            # ============================================================
             # REPORT GENERATION
-            # ====================================================
+            # ============================================================
 
             try:
 
@@ -386,90 +384,86 @@ def forecast():
                     top_f
                 )
 
-                if report is None:
+                if isinstance(report, dict):
 
-                    raise Exception(
-                        "Report generator returned None"
+                    report_text = report.get(
+                        "full_text",
+                        "Forecast generated successfully."
                     )
+
+                else:
+
+                    report_text = str(report)
 
             except Exception as e:
 
                 print(f"REPORT GENERATION FAILED: {e}")
 
-                report = {
+                report_text = f"""
+                Forecast generated successfully for {country}.
 
-                    "full_text": (
-                        f"Forecast generated successfully for "
-                        f"{country}.\n\n"
-                        f"Predicted Risk Level: {risk}\n"
-                        f"Conflict Probability: "
-                        f"{round(float(prob[0]) * 100, 2)}%"
-                    )
-                }
-
-            print("STEP 3 PASSED")
-
-            # ====================================================
-            # GAUGE CHART
-            # ====================================================
-
-            try:
-
-                gauge_chart = (
-                    visualization_engine.create_risk_gauge(
-                        prob[0],
-                        risk
-                    )
-                )
-
-            except Exception as e:
-
-                print(f"Gauge generation failed: {e}")
-
-                gauge_chart = None
+                Predicted Risk Level: {risk}
+                Conflict Probability: {prob[0]:.2%}
+                """
 
             print("STEP 4 PASSED")
 
-            # ====================================================
-            # SHAP CHART
-            # ====================================================
+            # ============================================================
+            # GAUGE CHART
+            # ============================================================
+
+            gauge_chart = visualization_engine.create_risk_gauge(
+                prob[0],
+                risk
+            )
+
+            print("STEP 5 PASSED")
+
+            # ============================================================
+            # SAFE SHAP VISUALIZATION
+            # ============================================================
 
             try:
 
-                if top_f.empty:
+                if len(top_f) > 0:
 
-                    shap_chart = None
+                    shap_chart = (
+                        visualization_engine.create_shap_chart(top_f)
+                    )
 
                 else:
 
-                    shap_chart = (
-                        visualization_engine
-                        .create_shap_chart(top_f)
-                    )
+                    shap_chart = """
+                    <div style='padding:20px;color:white;text-align:center;'>
+                        SHAP instability analysis is temporarily unavailable.<br><br>
+                        Forecast generated successfully using fallback inference mode.
+                    </div>
+                    """
 
             except Exception as e:
 
-                print(f"SHAP chart failed: {e}")
+                print(f"SHAP chart rendering failed: {e}")
 
-                shap_chart = None
+                shap_chart = """
+                <div style='padding:20px;color:white;text-align:center;'>
+                    SHAP visualization unavailable.
+                </div>
+                """
 
-            # ====================================================
-            # FINAL RESULT OBJECT
-            # ====================================================
+            # ============================================================
+            # FINAL RESULTS
+            # ============================================================
 
             results = {
 
-                "report": report.get(
-                    "full_text",
-                    "Report unavailable."
-                ),
+                "report": report_text,
 
                 "gauge": gauge_chart,
 
                 "shap_chart": shap_chart
             }
 
-            print("STEP 5 PASSED")
+            print("STEP 6 PASSED")
 
         except Exception as e:
 
@@ -477,18 +471,6 @@ def forecast():
                 f"Forecasting Simulation Error: {e}",
                 exc_info=True
             )
-
-            results = {
-
-                "report": (
-                    "Forecasting pipeline encountered "
-                    "an internal processing error."
-                ),
-
-                "gauge": None,
-
-                "shap_chart": None
-            }
 
     return render_template(
         "future_forecasting.html",
