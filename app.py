@@ -225,150 +225,162 @@ def historical():
 @app.route("/forecast", methods=['GET', 'POST'])
 def forecast():
 
-    if not system_operational:
+```
+if not system_operational:
 
-        return render_template(
-            "future_forecasting.html",
-            error="Environment Error"
+    return render_template(
+        "future_forecasting.html",
+        error="Environment Error"
+    )
+
+results = None
+
+if request.method == 'POST':
+
+    try:
+
+        country = request.form.get('country')
+
+        scenario = {
+
+            'GDP': float(request.form.get('gdp', 100)),
+
+            'Stability': float(
+                request.form.get('stability', 0)
+            ),
+
+            'MilExp': float(
+                request.form.get('milexp', 1000)
+            )
+        }
+
+        country_history = df_base[
+            df_base['Country'] == country
+        ]
+
+        sim_df = simulation_engine.simulate_future_risk(
+            country_history,
+            scenario,
+            2024,
+            ['GDP', 'Stability', 'MilExp'],
+            ['GDP', 'Stability', 'MilExp']
         )
 
-    results = None
+        print(sim_df.tail(1))
 
-    if request.method == 'POST':
+        print(sim_df.dtypes)
+
+        # ====================================================
+        # PREPARE MODEL INPUT
+        # ====================================================
+
+        X_input = prediction_engine.prepare_prediction_input(
+            sim_df.tail(1),
+            feature_order
+        )
+
+        X_input = X_input.apply(
+            pd.to_numeric,
+            errors='coerce'
+        )
+
+        X_input = X_input.fillna(0)
+
+        # ====================================================
+        # SAFE BOOL → FLOAT CONVERSION
+        # ====================================================
+
+        bool_cols = X_input.select_dtypes(
+            include=['bool']
+        ).columns
+
+        if len(bool_cols) > 0:
+
+            X_input[bool_cols] = (
+                X_input[bool_cols]
+                .astype(int)
+                .astype(float)
+            )
+
+        X_input = X_input.astype(float)
+
+        print("===== X_INPUT DTYPES =====")
+
+        print(X_input.dtypes)
+
+        print("===== X_INPUT VALUES =====")
+
+        print(X_input.iloc[0])
+
+        # ====================================================
+        # MODEL PREDICTION
+        # ====================================================
+
+        prob, _ = prediction_engine.predict_conflict(
+            model,
+            X_input
+        )
+
+        print("STEP 1 PASSED")
+
+        risk = prediction_engine.classify_risk(
+            prob[0],
+            config.LOW_RISK_THRESHOLD,
+            config.HIGH_RISK_THRESHOLD
+        )
+
+        print("STEP 2 PASSED")
+
+        # ====================================================
+        # DEFAULT SAFE EMPTY DATAFRAME
+        # ====================================================
+
+        top_f = pd.DataFrame(
+            columns=['feature', 'shap_value']
+        )
+
+        # ====================================================
+        # SHAP PROCESSING
+        # ====================================================
+
+        if explainer is not None:
+
+            try:
+
+                shap_values = shap_engine.generate_shap_values(
+                    explainer,
+                    X_input
+                )
+
+                extracted = shap_engine.get_top_feature_impacts(
+                    shap_values,
+                    X_input.columns,
+                    top_n=10
+                )
+
+                if extracted is not None:
+
+                    top_f = extracted
+
+                print("SHAP FEATURE EXTRACTION SUCCESS")
+
+            except Exception as e:
+
+                print(f"SHAP pipeline failed: {e}")
+
+                top_f = pd.DataFrame(
+                    columns=['feature', 'shap_value']
+                )
+
+        else:
+
+            print("SHAP explainer unavailable")
+
+        # ====================================================
+        # REPORT GENERATION
+        # ====================================================
 
         try:
-
-            country = request.form.get('country')
-
-            scenario = {
-
-                'GDP': float(request.form.get('gdp', 100)),
-
-                'Stability': float(
-                    request.form.get('stability', 0)
-                ),
-
-                'MilExp': float(
-                    request.form.get('milexp', 1000)
-                )
-            }
-
-            country_history = df_base[
-                df_base['Country'] == country
-            ]
-
-            sim_df = simulation_engine.simulate_future_risk(
-                country_history,
-                scenario,
-                2024,
-                ['GDP', 'Stability', 'MilExp'],
-                ['GDP', 'Stability', 'MilExp']
-            )
-
-            print(sim_df.tail(1))
-
-            print(sim_df.dtypes)
-
-            X_input = prediction_engine.prepare_prediction_input(
-                sim_df.tail(1),
-                feature_order
-            )
-
-            X_input = X_input.apply(pd.to_numeric, errors='coerce')
-
-            X_input = X_input.fillna(0)
-
-            # ----------------------------------------------------
-            # Convert bool columns safely to float64
-            # ----------------------------------------------------
-
-            bool_cols = X_input.select_dtypes(include=['bool']).columns
-
-            if len(bool_cols) > 0:
-
-                X_input[bool_cols] = (
-                    X_input[bool_cols]
-                    .astype(int)
-                    .astype(float)
-                )
-
-            X_input = X_input.astype(float)
-
-            print("===== X_INPUT DTYPES =====")
-
-            print(X_input.dtypes)
-
-            print("===== X_INPUT VALUES =====")
-
-            print(X_input.iloc[0])
-
-            # ----------------------------------------------------
-            # Prediction
-            # ----------------------------------------------------
-
-            prob, _ = prediction_engine.predict_conflict(
-                model,
-                X_input
-            )
-
-            print("STEP 1 PASSED")
-
-            risk = prediction_engine.classify_risk(
-                prob[0],
-                config.LOW_RISK_THRESHOLD,
-                config.HIGH_RISK_THRESHOLD
-            )
-
-            print("STEP 2 PASSED")
-
-            # ----------------------------------------------------
-            # SHAP Generation
-            # ----------------------------------------------------
-
-            if explainer is not None:
-
-                try:
-
-                    shap_values = shap_engine.generate_shap_values(
-                        explainer,
-                        X_input
-                    )
-
-                except Exception as e:
-
-                    print(f"SHAP generation failed: {e}")
-
-                    shap_values = None
-
-            else:
-
-                shap_values = None
-
-            # ----------------------------------------------------
-            # Top Feature Extraction
-            # ----------------------------------------------------
-
-            top_f = None
-
-            if shap_values is not None:
-
-                try:
-
-                    top_f = shap_engine.get_top_feature_impacts(
-                        shap_values,
-                        X_input.columns,
-                        top_n=10
-                    )
-
-                except Exception as e:
-
-                    print(f"Top feature extraction failed: {e}")
-
-                    top_f = None
-
-            # ----------------------------------------------------
-            # Report Generation + Defensive Validation
-            # ----------------------------------------------------
 
             report = report_generator.generate_full_report(
                 country,
@@ -378,80 +390,117 @@ def forecast():
                 top_f
             )
 
-            print("===== REPORT DEBUG =====")
-
-            print("REPORT OBJECT:", report)
-
-            print("REPORT TYPE:", type(report))
-
             if report is None:
 
-                print("WARNING: report_generator returned None")
-
-                report = {
-                    "full_text": (
-                        "Forecast generated successfully, "
-                        "but intelligence report generation failed."
-                    )
-                }
-
-            print("STEP 3 PASSED")
-
-            # ----------------------------------------------------
-            # Gauge Chart
-            # ----------------------------------------------------
-
-            gauge_chart = visualization_engine.create_risk_gauge(
-                prob[0],
-                risk
-            )
-
-            print("STEP 4 PASSED")
-
-            # ----------------------------------------------------
-            # SHAP Chart
-            # ----------------------------------------------------
-
-            try:
-
-                shap_chart = visualization_engine.create_shap_chart(top_f)
-
-            except Exception as e:
-
-                print(f"SHAP chart generation failed: {e}")
-
-                shap_chart = None
-
-            # ----------------------------------------------------
-            # Final Result Packaging
-            # ----------------------------------------------------
-
-            results = {
-
-                "report": report.get(
-                    "full_text",
-                    "Report unavailable."
-                ),
-
-                "gauge": gauge_chart,
-
-                "shap_chart": shap_chart
-            }
-
-            print("STEP 5 PASSED")
+                raise Exception(
+                    "Report generator returned None"
+                )
 
         except Exception as e:
 
-            logger.error(
-                f"Forecasting Simulation Error: {e}",
-                exc_info=True
+            print(f"REPORT GENERATION FAILED: {e}")
+
+            report = {
+
+                "full_text": (
+                    f"Forecast generated successfully for "
+                    f"{country}.\n\n"
+                    f"Predicted Risk Level: {risk}\n"
+                    f"Conflict Probability: "
+                    f"{round(float(prob[0]) * 100, 2)}%"
+                )
+            }
+
+        print("STEP 3 PASSED")
+
+        # ====================================================
+        # GAUGE CHART
+        # ====================================================
+
+        try:
+
+            gauge_chart = (
+                visualization_engine.create_risk_gauge(
+                    prob[0],
+                    risk
+                )
             )
 
-    return render_template(
-        "future_forecasting.html",
-        countries=countries,
-        results=results
-    )
+        except Exception as e:
+
+            print(f"Gauge generation failed: {e}")
+
+            gauge_chart = None
+
+        print("STEP 4 PASSED")
+
+        # ====================================================
+        # SHAP CHART
+        # ====================================================
+
+        try:
+
+            if top_f.empty:
+
+                shap_chart = None
+
+            else:
+
+                shap_chart = (
+                    visualization_engine
+                    .create_shap_chart(top_f)
+                )
+
+        except Exception as e:
+
+            print(f"SHAP chart failed: {e}")
+
+            shap_chart = None
+
+        # ====================================================
+        # FINAL RESULT OBJECT
+        # ====================================================
+
+        results = {
+
+            "report": report.get(
+                "full_text",
+                "Report unavailable."
+            ),
+
+            "gauge": gauge_chart,
+
+            "shap_chart": shap_chart
+        }
+
+        print("STEP 5 PASSED")
+
+    except Exception as e:
+
+        logger.error(
+            f"Forecasting Simulation Error: {e}",
+            exc_info=True
+        )
+
+        results = {
+
+            "report": (
+                "Forecasting pipeline encountered "
+                "an internal processing error."
+            ),
+
+            "gauge": None,
+
+            "shap_chart": None
+        }
+
+return render_template(
+    "future_forecasting.html",
+    countries=countries,
+    results=results
+)
+```
+
 
 # ============================================================
 # 11. Health Route
