@@ -22,7 +22,9 @@ def create_shap_explainer(model):
             feature_perturbation="tree_path_dependent"
         )
 
-        print("SHAP explainer initialized successfully.")
+        print("================================================")
+        print("SHAP INITIALIZATION SUCCESSFUL")
+        print("================================================")
 
         return explainer
 
@@ -37,7 +39,7 @@ def create_shap_explainer(model):
 
 
 def generate_shap_values(explainer, X):
-    """Generates SHAP values for the input features."""
+    """Generates SHAP values safely."""
 
     try:
 
@@ -51,19 +53,49 @@ def generate_shap_values(explainer, X):
             return None
 
         # ============================================================
-        # FORCE NUMERIC SAFETY
+        # COPY INPUT
         # ============================================================
 
         X = X.copy()
 
-        X = X.apply(pd.to_numeric, errors='coerce')
+        # ============================================================
+        # REMOVE BRACKET CONTAMINATION
+        # FIXES: '[5E-1]' → '5E-1'
+        # ============================================================
+
+        X = X.replace(r'[\[\]]', '', regex=True)
+
+        # ============================================================
+        # FORCE NUMERIC CONVERSION
+        # ============================================================
+
+        for col in X.columns:
+
+            X[col] = pd.to_numeric(
+                X[col],
+                errors='coerce'
+            )
+
+        # ============================================================
+        # HANDLE NULLS
+        # ============================================================
 
         X = X.fillna(0)
 
+        # ============================================================
+        # FORCE FLOAT64
+        # ============================================================
+
         X = X.astype(np.float64)
 
-        print("SHAP INPUT TYPES VERIFIED:")
+        # ============================================================
+        # FINAL DIAGNOSTICS
+        # ============================================================
+
+        print("================================================")
+        print("SHAP INPUT TYPES VERIFIED")
         print(X.dtypes)
+        print("================================================")
 
         # ============================================================
         # GENERATE SHAP VALUES
@@ -74,7 +106,9 @@ def generate_shap_values(explainer, X):
             check_additivity=False
         )
 
-        print("SHAP values generated successfully.")
+        print("================================================")
+        print("SHAP VALUES GENERATED SUCCESSFULLY")
+        print("================================================")
 
         return shap_values
 
@@ -93,7 +127,7 @@ def get_top_feature_impacts(
     feature_names,
     top_n=10
 ):
-    """Ranks features by absolute SHAP impact."""
+    """Ranks features by SHAP importance safely."""
 
     try:
 
@@ -104,10 +138,10 @@ def get_top_feature_impacts(
         if shap_values is None:
 
             print("No SHAP values available.")
-            return []
+            return pd.DataFrame()
 
         # ============================================================
-        # HANDLE MULTICLASS / BINARY OUTPUT
+        # HANDLE MULTICLASS OUTPUT
         # ============================================================
 
         if isinstance(shap_values, list):
@@ -123,7 +157,7 @@ def get_top_feature_impacts(
             impacts = shap_values
 
         # ============================================================
-        # HANDLE MULTI-ROW INPUT
+        # HANDLE MULTI-ROW
         # ============================================================
 
         if len(impacts.shape) > 1:
@@ -131,7 +165,7 @@ def get_top_feature_impacts(
             impacts = impacts[0]
 
         # ============================================================
-        # CREATE IMPACT DATAFRAME
+        # BUILD DATAFRAME
         # ============================================================
 
         impact_df = pd.DataFrame({
@@ -141,14 +175,21 @@ def get_top_feature_impacts(
             'shap_value': impacts,
 
             'abs_impact': np.abs(impacts)
+
         })
+
+        # ============================================================
+        # SORT FEATURES
+        # ============================================================
 
         impact_df = impact_df.sort_values(
             by='abs_impact',
             ascending=False
         ).head(top_n)
 
-        print("Top SHAP features extracted successfully.")
+        print("================================================")
+        print("TOP SHAP FEATURES EXTRACTED")
+        print("================================================")
 
         return impact_df
 
@@ -159,11 +200,11 @@ def get_top_feature_impacts(
         print(f"Error extracting top SHAP features: {e}")
         print("================================================")
 
-        return []
+        return pd.DataFrame()
 
 
 def generate_explanation_summary(top_features):
-    """Generates geopolitical intelligence style summary."""
+    """Generates readable SHAP explanation summary."""
 
     # ============================================================
     # SAFETY CHECKS
@@ -176,6 +217,10 @@ def generate_explanation_summary(top_features):
     if isinstance(top_features, list):
 
         return "No SHAP feature explanations available."
+
+    if len(top_features) == 0:
+
+        return "No significant instability drivers identified."
 
     summary_lines = []
 
@@ -190,12 +235,11 @@ def generate_explanation_summary(top_features):
             )
 
             impact_type = (
-                "escalation probability"
+                "conflict escalation probability"
                 if row['shap_value'] > 0
                 else "instability risk"
             )
 
-            # Cleaner feature names
             clean_name = row['feature'].replace('_', ' ')
 
             line = (
@@ -205,7 +249,9 @@ def generate_explanation_summary(top_features):
 
             summary_lines.append(line)
 
-        print("SHAP explanation summary generated successfully.")
+        print("================================================")
+        print("SHAP SUMMARY GENERATED")
+        print("================================================")
 
         return "\n".join(summary_lines)
 
