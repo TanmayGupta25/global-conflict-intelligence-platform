@@ -1,3 +1,4 @@
+import pandas as pd
 import datetime
 
 def generate_risk_summary(country, year, probability, risk_level):
