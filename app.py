@@ -225,7 +225,6 @@ def historical():
 @app.route("/forecast", methods=['GET', 'POST'])
 def forecast():
 
-```
 if not system_operational:
 
     return render_template(
@@ -499,8 +498,6 @@ return render_template(
     countries=countries,
     results=results
 )
-```
-
 
 # ============================================================
 # 11. Health Route
