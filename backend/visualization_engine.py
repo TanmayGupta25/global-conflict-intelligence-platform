@@ -61,15 +61,20 @@ def generate_global_map_json(df_base, feature_order, model, prediction_engine):
 
             cleaned_probs.append(value)
 
+        # =====================================================
+        # CREATE RISK SCORES
+        # =====================================================
+
         risk_scores = []
 
         for p in cleaned_probs:
 
             try:
+
                 value = float(p) * 100
 
                 if pd.isna(value):
-                     value = 0.0
+                    value = 0.0
 
             except:
                 value = 0.0
@@ -78,26 +83,80 @@ def generate_global_map_json(df_base, feature_order, model, prediction_engine):
 
         latest_records['Risk_Score'] = risk_scores
 
-        print(latest_records[['Country', 'Risk_Score']].head())
-
         latest_records['Risk_Level'] = [
             prediction_engine.classify_risk(p)
             for p in cleaned_probs
         ]
 
         # =====================================================
-        # REMOVE BAD COUNTRY VALUES
+        # CLEAN COUNTRY VALUES
         # =====================================================
 
         latest_records = latest_records.dropna(
             subset=['Country', 'Risk_Score']
         )
 
+        latest_records["Country"] = (
+            latest_records["Country"]
+            .astype(str)
+            .str.strip()
+        )
+
+        # =====================================================
+        # COUNTRY NAME FIXES
+        # =====================================================
+
+        latest_records["Country"] = latest_records["Country"].replace({
+
+            "United States": "United States of America",
+            "USA": "United States of America",
+
+            "Russia": "Russian Federation",
+
+            "South Korea": "Korea, Republic of",
+            "North Korea": "Korea, Democratic People's Republic of",
+
+            "Iran": "Iran, Islamic Republic of",
+
+            "Syria": "Syrian Arab Republic",
+
+            "Vietnam": "Viet Nam",
+
+            "Venezuela": "Venezuela, Bolivarian Republic of",
+
+            "Tanzania": "Tanzania, United Republic of",
+
+            "Bolivia": "Bolivia, Plurinational State of",
+
+            "Moldova": "Moldova, Republic of",
+
+            "Laos": "Lao People's Democratic Republic",
+
+            "Brunei": "Brunei Darussalam",
+
+            "Czech Republic": "Czechia",
+
+            "Ivory Coast": "Côte d'Ivoire",
+
+            "Democratic Republic of Congo":
+                "Congo, The Democratic Republic of the",
+
+            "Republic of Congo": "Congo",
+
+            "Palestine": "Palestine, State of"
+
+        })
+
+        # =====================================================
+        # DEBUG LOGS
+        # =====================================================
+
+        print(latest_records[['Country', 'Risk_Score']].head(50))
+
         # =====================================================
         # BUILD MAP
         # =====================================================
 
-        print(latest_records[["Country", "Risk_Score"]].head(50))
         fig = px.choropleth(
             latest_records,
             locations="Country",
@@ -114,26 +173,43 @@ def generate_global_map_json(df_base, feature_order, model, prediction_engine):
                 "#78350f",
                 "#ef4444"
             ],
-            range_color=(0, 1),
+
+            # IMPORTANT FIX
+            range_color=(0, 100),
+
             labels={
                 'Risk_Score': 'Conflict Probability %'
             }
         )
 
+        # =====================================================
+        # MAP STYLING
+        # =====================================================
+
+        fig.update_geos(
+            showcountries=True,
+            countrycolor="#475569",
+            showcoastlines=True,
+            coastlinecolor="#475569",
+            showland=True,
+            landcolor="#1e293b",
+            showocean=True,
+            oceancolor="#0f172a",
+            bgcolor="#0f172a",
+            projection_type="equirectangular"
+        )
+
         fig.update_layout(
-            geo=dict(
-                showframe=False,
-                showcoastlines=True,
-                projection_type='equirectangular',
-                bgcolor='#0f172a',
-                lakecolor='#1e293b',
-                landcolor='#1e293b',
-                subunitcolor='#334155'
-            ),
             paper_bgcolor='#0f172a',
             plot_bgcolor='#0f172a',
             font={'color': "#f1f5f9"},
-            margin=dict(l=0, r=0, t=0, b=0)
+            margin=dict(l=0, r=0, t=0, b=0),
+
+            coloraxis_colorbar=dict(
+                title="Risk %",
+                tickfont=dict(color="white"),
+                titlefont=dict(color="white")
+            )
         )
 
         return json.dumps(
@@ -212,19 +288,10 @@ def create_risk_gauge(prob, risk_level):
 
 
 def create_shap_chart(top_f):
-    """
-    Generates a horizontal bar chart for feature impacts.
-    Supports:
-    - SHAP dataframe
-    - fallback list
-    - empty/None values
-    """
 
-    # =========================================================
-    # 1. EMPTY SAFETY
-    # =========================================================
-
-    if top_f is None:
+    if top_f is None or (
+        isinstance(top_f, list) and len(top_f) == 0
+    ):
 
         fig = go.Figure()
 
@@ -234,11 +301,11 @@ def create_shap_chart(top_f):
             font={'color': "#f1f5f9"},
             annotations=[
                 dict(
-                    text="No instability driver data available.",
+                    text="Instability driver analysis temporarily unavailable.",
                     x=0.5,
                     y=0.5,
                     showarrow=False,
-                    font=dict(size=16, color="#f1f5f9")
+                    font=dict(size=16)
                 )
             ],
             xaxis=dict(visible=False),
@@ -251,104 +318,72 @@ def create_shap_chart(top_f):
             cls=plotly.utils.PlotlyJSONEncoder
         )
 
-    # =========================================================
-    # 2. FALLBACK LIST SUPPORT
-    # =========================================================
+    try:
 
-    if isinstance(top_f, list):
+        if isinstance(top_f, list):
 
-        if len(top_f) == 0:
+            features = [x['feature'] for x in top_f]
+            values = [x['impact'] for x in top_f]
 
-            fig = go.Figure()
+        else:
 
-            fig.update_layout(
-                paper_bgcolor='#1e293b',
-                plot_bgcolor='#1e293b',
-                font={'color': "#f1f5f9"},
-                annotations=[
-                    dict(
-                        text="No instability driver data available.",
-                        x=0.5,
-                        y=0.5,
-                        showarrow=False,
-                        font=dict(size=16, color="#f1f5f9")
-                    )
-                ],
-                xaxis=dict(visible=False),
-                yaxis=dict(visible=False),
-                height=300
+            if top_f.empty:
+                raise ValueError("Empty SHAP dataframe")
+
+            features = top_f['feature'].tolist()
+            values = top_f['shap_value'].tolist()
+
+        fig = go.Figure(go.Bar(
+            x=values,
+            y=features,
+            orientation='h',
+            marker=dict(
+                color=[
+                    '#ef4444' if x > 0 else '#38bdf8'
+                    for x in values
+                ]
             )
+        ))
 
-            return json.dumps(
-                fig,
-                cls=plotly.utils.PlotlyJSONEncoder
-            )
-
-        features = [x['feature'] for x in top_f]
-        values = [x['impact'] for x in top_f]
-
-    # =========================================================
-    # 3. DATAFRAME SUPPORT
-    # =========================================================
-
-    else:
-
-        if top_f.empty:
-
-            fig = go.Figure()
-
-            fig.update_layout(
-                paper_bgcolor='#1e293b',
-                plot_bgcolor='#1e293b',
-                font={'color': "#f1f5f9"},
-                annotations=[
-                    dict(
-                        text="No instability driver data available.",
-                        x=0.5,
-                        y=0.5,
-                        showarrow=False,
-                        font=dict(size=16, color="#f1f5f9")
-                    )
-                ],
-                xaxis=dict(visible=False),
-                yaxis=dict(visible=False),
-                height=300
-            )
-
-            return json.dumps(
-                fig,
-                cls=plotly.utils.PlotlyJSONEncoder
-            )
-
-        features = top_f['feature'].tolist()
-        values = top_f['shap_value'].tolist()
-
-    # =========================================================
-    # 4. BUILD CHART
-    # =========================================================
-
-    fig = go.Figure(go.Bar(
-        x=values,
-        y=features,
-        orientation='h',
-        marker=dict(
-            color=[
-                '#ef4444' if x > 0 else '#38bdf8'
-                for x in values
-            ]
+        fig.update_layout(
+            paper_bgcolor='#1e293b',
+            plot_bgcolor='#1e293b',
+            font={'color': "#f1f5f9"},
+            height=300,
+            margin=dict(l=10, r=10, t=30, b=10),
+            yaxis=dict(autorange="reversed")
         )
-    ))
 
-    fig.update_layout(
-        paper_bgcolor='#1e293b',
-        plot_bgcolor='#1e293b',
-        font={'color': "#f1f5f9"},
-        height=300,
-        margin=dict(l=10, r=10, t=30, b=10),
-        yaxis=dict(autorange="reversed")
-    )
+        return json.dumps(
+            fig,
+            cls=plotly.utils.PlotlyJSONEncoder
+        )
 
-    return json.dumps(
-        fig,
-        cls=plotly.utils.PlotlyJSONEncoder
-    )
+    except Exception as e:
+
+        print(f"SHAP CHART ERROR: {e}")
+
+        fig = go.Figure()
+
+        fig.update_layout(
+            paper_bgcolor='#1e293b',
+            plot_bgcolor='#1e293b',
+            font={'color': "#f1f5f9"},
+            annotations=[
+                dict(
+                    text="Instability driver analysis temporarily unavailable.",
+                    x=0.5,
+                    y=0.5,
+                    showarrow=False,
+                    font=dict(size=16)
+                )
+            ],
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            height=300
+        )
+
+        return json.dumps(
+            fig,
+            cls=plotly.utils.PlotlyJSONEncoder
+        )
