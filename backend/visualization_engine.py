@@ -97,6 +97,7 @@ def generate_global_map_json(df_base, feature_order, model, prediction_engine):
         # BUILD MAP
         # =====================================================
 
+        print(latest_records[["Country", "Risk_Score"]].head(50))
         fig = px.choropleth(
             latest_records,
             locations="Country",
