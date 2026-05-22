@@ -61,10 +61,24 @@ def generate_global_map_json(df_base, feature_order, model, prediction_engine):
 
             cleaned_probs.append(value)
 
-        latest_records['Risk_Score'] = [
-            round(p * 100, 2)
-            for p in cleaned_probs
-        ]
+        risk_scores = []
+
+        for p in cleaned_probs:
+
+            try:
+                value = float(p) * 100
+
+                if pd.isna(value):
+                     value = 0.0
+
+            except:
+                value = 0.0
+
+            risk_scores.append(round(value, 2))
+
+        latest_records['Risk_Score'] = risk_scores
+
+        print(latest_records[['Country', 'Risk_Score']].head())
 
         latest_records['Risk_Level'] = [
             prediction_engine.classify_risk(p)
