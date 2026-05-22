@@ -76,19 +76,28 @@
 
     <div class='card'>
 
-        <div id='riskGauge'></div>
+        <div id='gauge'></div>
 
     </div>
 
     <!-- ====================================================== -->
-    <!-- SHAP -->
+    <!-- SHAP / FALLBACK -->
     <!-- ====================================================== -->
 
     <div class='card'>
 
         <h3>Primary Instability Drivers</h3>
 
-        <div id='shapChart'></div>
+        <div
+            id='shap_chart'
+            style='
+                color:white;
+                padding:20px;
+                text-align:center;
+            '
+        >
+            Instability driver analysis temporarily unavailable.
+        </div>
 
     </div>
 
@@ -116,98 +125,23 @@
 
     <script>
 
-    document.addEventListener("DOMContentLoaded", function () {
-
-        /* ===================================================== */
-        /* GAUGE CHART */
-        /* ===================================================== */
-
         try {
 
-            const gaugeData = {{ results.gauge | safe }};
+            var g = {{ results.gauge | safe }};
 
-            if (
-                gaugeData &&
-                gaugeData.data
-            ) {
+            Plotly.newPlot(
+                'gauge',
+                g.data,
+                g.layout
+            );
 
-                Plotly.newPlot(
-                    'riskGauge',
-                    gaugeData.data,
-                    gaugeData.layout,
-                    {responsive: true}
-                );
+            console.log("Gauge rendered successfully.");
 
-                console.log("Gauge chart rendered.");
+        } catch(err) {
 
-            } else {
-
-                console.log("Gauge data missing.");
-
-            }
-
-        } catch (err) {
-
-            console.error("Gauge render failed:", err);
+            console.error("Gauge rendering failed:", err);
 
         }
-
-        /* ===================================================== */
-        /* SHAP CHART */
-        /* ===================================================== */
-
-        try {
-
-            const shapData = {{ results.shap_chart | safe }};
-
-            if (
-                shapData &&
-                shapData.data &&
-                shapData.data.length > 0
-            ) {
-
-                Plotly.newPlot(
-                    'shapChart',
-                    shapData.data,
-                    shapData.layout,
-                    {responsive: true}
-                );
-
-                console.log("SHAP chart rendered.");
-
-            } else {
-
-                document.getElementById("shapChart").innerHTML = `
-                    <div style="
-                        color:#94a3b8;
-                        padding-top:100px;
-                        text-align:center;
-                        font-size:16px;
-                    ">
-                        No significant instability drivers identified.
-                    </div>
-                `;
-
-            }
-
-        } catch (err) {
-
-            console.error("SHAP render failed:", err);
-
-            document.getElementById("shapChart").innerHTML = `
-                <div style="
-                    color:#94a3b8;
-                    padding-top:100px;
-                    text-align:center;
-                    font-size:16px;
-                ">
-                    Instability analysis temporarily unavailable.
-                </div>
-            `;
-
-        }
-
-    });
 
     </script>
 
