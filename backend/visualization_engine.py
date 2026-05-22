@@ -113,6 +113,7 @@ def generate_global_map_json(df_base, feature_order, model, prediction_engine):
                 "#78350f",
                 "#ef4444"
             ],
+            range_color=(0, 10),
             labels={
                 'Risk_Score': 'Conflict Probability %'
             }
